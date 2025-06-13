@@ -34,8 +34,9 @@ jobs:
   deploy:
     name: Deploy to Production
     needs: check_review
-    runs-on: ubuntu-latest
-    if: github.event.inputs.environment == 'production'
+    if: |
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
     environment: production
     steps:
       - name: Checkout code
@@ -88,7 +89,7 @@ jobs:
           # Check all required secrets
           missing_required=0
           for secret in "${required_secrets[@]}"; do
-            if ! check_secret "$secret" "${{ secrets[secret] }}" "true"; then
+            if ! check_secret "$secret" "${{ secrets.$secret }}" "true"; then
               missing_required=1
             fi
           done
@@ -96,7 +97,7 @@ jobs:
           # Check if at least one API key is set
           api_key_set=0
           for key in "${required_api_keys[@]}"; do
-            if [[ -n "${{ secrets[key] }}" ]]; then
+            if [[ -n "${{ secrets.$key }}" ]]; then
               api_key_set=1
               break
             fi
