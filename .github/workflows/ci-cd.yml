@@ -372,7 +372,7 @@ jobs:
               image:
                 registry_type: DOCKER_HUB
                 registry: ghcr.io
-                repository: danny-avila/librechat-rag-api-dev-lite
+                repository: danny-avila/librechat-rag-api-dev
                 tag: latest
               instance_count: 1
               instance_size_slug: basic-xxs
