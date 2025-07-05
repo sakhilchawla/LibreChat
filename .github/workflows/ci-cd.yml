@@ -74,6 +74,7 @@ jobs:
         env:
           DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
           DIGITALOCEAN_REGISTRY: ${{ secrets.DIGITALOCEAN_REGISTRY }}
+          DIGITALOCEAN_APP_ID: ${{ secrets.DIGITALOCEAN_APP_ID }}
           MONGO_URI: ${{ secrets.MONGO_URI }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           CREDS_KEY: ${{ secrets.CREDS_KEY }}
@@ -110,6 +111,7 @@ jobs:
           required_secrets=(
             "DIGITALOCEAN_ACCESS_TOKEN"
             "DIGITALOCEAN_REGISTRY"
+            "DIGITALOCEAN_APP_ID"
             "MONGO_URI"
             "JWT_SECRET"
             "CREDS_KEY"
@@ -210,7 +212,7 @@ jobs:
           
           # RAG API Configuration
           RAG_PORT=8000
-          RAG_API_URL=http://rag-api:8000
+          RAG_API_URL=http://rag_api:8000
           
           # Security
           JWT_SECRET=${{ secrets.JWT_SECRET }}
@@ -261,233 +263,39 @@ jobs:
             POSTGRES_DB=${{ secrets.POSTGRES_DB }}
             POSTGRES_USER=${{ secrets.POSTGRES_USER }}
             POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-            CREDS_KEY=${{ secrets.CREDS_KEY }}
-            CREDS_IV=${{ secrets.CREDS_IV }}
           platforms: linux/amd64,linux/arm64
           cache-from: type=registry,ref=registry.digitalocean.com/${{ secrets.DIGITALOCEAN_REGISTRY }}/librechat:buildcache
           cache-to: type=registry,ref=registry.digitalocean.com/${{ secrets.DIGITALOCEAN_REGISTRY }}/librechat:buildcache,mode=max
 
-      - name: Create App Specs for Separate Apps
-        run: |
-          # Create app spec for main LibreChat API
-          cat << EOF > librechat-api-spec.yaml
-          name: librechat-api
-          services:
-            - name: api
-              image:
-                registry_type: DOCKER_HUB
-                registry: registry.digitalocean.com
-                repository: ${{ secrets.DIGITALOCEAN_REGISTRY }}/librechat
-                tag: latest
-              instance_count: 1
-              instance_size_slug: basic-xxs
-              http_port: 3080
-              health_check:
-                http_path: /api/health
-              envs:
-                - key: NODE_ENV
-                  value: "production"
-                - key: PORT
-                  value: "3080"
-                - key: HOST
-                  value: "0.0.0.0"
-                - key: MONGO_URI
-                  value: "${{ secrets.MONGO_URI }}"
-                - key: JWT_SECRET
-                  value: "${{ secrets.JWT_SECRET }}"
-                - key: CREDS_KEY
-                  value: "${{ secrets.CREDS_KEY }}"
-                - key: CREDS_IV
-                  value: "${{ secrets.CREDS_IV }}"
-                - key: MEILI_HOST
-                  value: "http://meilisearch:7700"
-                - key: MEILI_MASTER_KEY
-                  value: "${{ secrets.MEILI_MASTER_KEY }}"
-                - key: RAG_API_URL
-                  value: "https://librechat-rag-api.ondigitalocean.app"
-                - key: RAG_PORT
-                  value: "8000"
-                - key: POSTGRES_HOST
-                  value: "${{ secrets.POSTGRES_HOST }}"
-                - key: POSTGRES_PORT
-                  value: "${{ secrets.POSTGRES_PORT }}"
-                - key: POSTGRES_DB
-                  value: "${{ secrets.POSTGRES_DB }}"
-                - key: POSTGRES_USER
-                  value: "${{ secrets.POSTGRES_USER }}"
-                - key: POSTGRES_PASSWORD
-                  value: "${{ secrets.POSTGRES_PASSWORD }}"
-                - key: OPENAI_API_KEY
-                  value: "${{ secrets.OPENAI_API_KEY }}"
-                - key: ANTHROPIC_API_KEY
-                  value: "${{ secrets.ANTHROPIC_API_KEY }}"
-                - key: GOOGLE_API_KEY
-                  value: "${{ secrets.GOOGLE_API_KEY }}"
-                - key: AZURE_API_KEY
-                  value: "${{ secrets.AZURE_API_KEY }}"
-                - key: AZURE_API_ENDPOINT
-                  value: "${{ secrets.AZURE_API_ENDPOINT }}"
-                - key: AZURE_DEPLOYMENT_NAME
-                  value: "${{ secrets.AZURE_DEPLOYMENT_NAME }}"
-                - key: BINGAI_TOKEN
-                  value: "${{ secrets.BINGAI_TOKEN }}"
-                - key: CHATGPT_TOKEN
-                  value: "${{ secrets.CHATGPT_TOKEN }}"
-                - key: HUGGINGFACE_API_KEY
-                  value: "${{ secrets.HUGGINGFACE_API_KEY }}"
-                - key: REPLICATE_API_KEY
-                  value: "${{ secrets.REPLICATE_API_KEY }}"
-                - key: BAN_VIOLATIONS
-                  value: "${{ secrets.BAN_VIOLATIONS }}"
-                - key: BAN_DURATION
-                  value: "${{ secrets.BAN_DURATION }}"
-                - key: BAN_INTERVAL
-                  value: "${{ secrets.BAN_INTERVAL }}"
-                - key: CUSTOM_CONFIG
-                  value: "${{ secrets.CUSTOM_CONFIG }}"
-
-            - name: meilisearch
-              image:
-                registry_type: DOCKER_HUB
-                registry: docker.io
-                repository: getmeili/meilisearch
-                tag: v1.12.3
-              instance_count: 1
-              instance_size_slug: basic-xxs
-              http_port: 7700
-              health_check:
-                http_path: /health
-              envs:
-                - key: MEILI_MASTER_KEY
-                  value: "${{ secrets.MEILI_MASTER_KEY }}"
-                - key: MEILI_NO_ANALYTICS
-                  value: "true"
-          EOF
-
-          # Create app spec for RAG API
-          cat << EOF > librechat-rag-api-spec.yaml
-          name: librechat-rag-api
-          services:
-            - name: rag-api
-              image:
-                registry_type: DOCKER_HUB
-                registry: ghcr.io
-                repository: danny-avila/librechat-rag-api-dev
-                tag: latest
-              instance_count: 1
-              instance_size_slug: basic-xxs
-              http_port: 8000
-              health_check:
-                http_path: /health
-              envs:
-                - key: DB_HOST
-                  value: "${{ secrets.POSTGRES_HOST }}"
-                - key: DB_PORT
-                  value: "${{ secrets.POSTGRES_PORT }}"
-                - key: POSTGRES_DB
-                  value: "${{ secrets.POSTGRES_DB }}"
-                - key: POSTGRES_USER
-                  value: "${{ secrets.POSTGRES_USER }}"
-                - key: POSTGRES_PASSWORD
-                  value: "${{ secrets.POSTGRES_PASSWORD }}"
-                - key: RAG_PORT
-                  value: "8000"
-                - key: OPENAI_API_KEY
-                  value: "${{ secrets.OPENAI_API_KEY }}"
-                - key: ANTHROPIC_API_KEY
-                  value: "${{ secrets.ANTHROPIC_API_KEY }}"
-                - key: GOOGLE_API_KEY
-                  value: "${{ secrets.GOOGLE_API_KEY }}"
-          EOF
-
-      - name: Deploy RAG API App First
+      - name: Deploy to DigitalOcean App Platform
         run: |
           # Wait for the image to be available in the registry
           sleep 30
           
-          # Check if RAG API app already exists
-          RAG_APP_ID=$(doctl apps list --format ID,Name --no-header | grep librechat-rag-api | awk '{print $1}' || echo "")
+          # Deploy the app
+          echo "Starting deployment..."
+          doctl apps create-deployment ${{ secrets.DIGITALOCEAN_APP_ID }} --wait
           
-          if [[ -z "$RAG_APP_ID" ]]; then
-            echo "Creating new RAG API app..."
-            doctl apps create --spec librechat-rag-api-spec.yaml --wait
-            if [ $? -ne 0 ]; then
-              echo "Failed to create RAG API app"
-              exit 1
-            fi
-            RAG_APP_ID=$(doctl apps list --format ID,Name --no-header | grep librechat-rag-api | awk '{print $1}')
-            echo "Created RAG API app with ID: $RAG_APP_ID"
+          # Check deployment status
+          if [ $? -eq 0 ]; then
+            echo "Deployment successful!"
           else
-            echo "Updating existing RAG API app with ID: $RAG_APP_ID"
-            doctl apps update $RAG_APP_ID --spec librechat-rag-api-spec.yaml --wait
-            if [ $? -ne 0 ]; then
-              echo "Failed to update RAG API app"
-              exit 1
-            fi
+            echo "Deployment failed!"
+            exit 1
           fi
-          
-          # Get RAG API app URL
-          RAG_APP_URL=$(doctl apps get $RAG_APP_ID --format URL --no-header)
-          echo "RAG API app URL: $RAG_APP_URL"
-          
-          # Store the RAG app ID for later use
-          echo "RAG_APP_ID=$RAG_APP_ID" >> $GITHUB_ENV
-          echo "RAG_APP_URL=$RAG_APP_URL" >> $GITHUB_ENV
 
-      - name: Deploy Main API App
+      - name: Check deployment status, logs, and environment variables
         run: |
-          # Wait a bit for the RAG API to be fully deployed
-          sleep 60
-          
-          # Check if main API app already exists
-          MAIN_APP_ID=$(doctl apps list --format ID,Name --no-header | grep librechat-api | awk '{print $1}' || echo "")
-          
-          if [[ -z "$MAIN_APP_ID" ]]; then
-            echo "Creating new main API app..."
-            doctl apps create --spec librechat-api-spec.yaml --wait
-            if [ $? -ne 0 ]; then
-              echo "Failed to create main API app"
-              exit 1
-            fi
-            MAIN_APP_ID=$(doctl apps list --format ID,Name --no-header | grep librechat-api | awk '{print $1}')
-            echo "Created main API app with ID: $MAIN_APP_ID"
-          else
-            echo "Updating existing main API app with ID: $MAIN_APP_ID"
-            doctl apps update $MAIN_APP_ID --spec librechat-api-spec.yaml --wait
-            if [ $? -ne 0 ]; then
-              echo "Failed to update main API app"
-              exit 1
-            fi
-          fi
-          
-          # Get main API app URL
-          MAIN_APP_URL=$(doctl apps get $MAIN_APP_ID --format URL --no-header)
-          echo "Main API app URL: $MAIN_APP_URL"
-          
-          # Store the main app ID for later use
-          echo "MAIN_APP_ID=$MAIN_APP_ID" >> $GITHUB_ENV
-          echo "MAIN_APP_URL=$MAIN_APP_URL" >> $GITHUB_ENV
+          echo "=== Deployment Status ==="
+          doctl apps list-deployments ${{ secrets.DIGITALOCEAN_APP_ID }} --format ID,Phase,Created
 
-      - name: Check deployment status and logs
-        run: |
-          echo "=== RAG API Deployment Status ==="
-          doctl apps list-deployments $RAG_APP_ID --format ID,Phase,Created
+          echo "=== Latest Deployment Logs ==="
+          LATEST_DEPLOYMENT=$(doctl apps list-deployments ${{ secrets.DIGITALOCEAN_APP_ID }} --format ID --no-header | head -n 1)
+          doctl apps logs ${{ secrets.DIGITALOCEAN_APP_ID }} --deployment $LATEST_DEPLOYMENT
 
-          echo "=== Main API Deployment Status ==="
-          doctl apps list-deployments $MAIN_APP_ID --format ID,Phase,Created
+          echo "=== App Status ==="
+          doctl apps get ${{ secrets.DIGITALOCEAN_APP_ID }}
 
-          echo "=== RAG API Latest Logs ==="
-          RAG_LATEST_DEPLOYMENT=$(doctl apps list-deployments $RAG_APP_ID --format ID --no-header | head -n 1)
-          doctl apps logs $RAG_APP_ID --deployment $RAG_LATEST_DEPLOYMENT
-
-          echo "=== Main API Latest Logs ==="
-          MAIN_LATEST_DEPLOYMENT=$(doctl apps list-deployments $MAIN_APP_ID --format ID --no-header | head -n 1)
-          doctl apps logs $MAIN_APP_ID --deployment $MAIN_LATEST_DEPLOYMENT
-
-          echo "=== App URLs ==="
-          echo "Main LibreChat API: $MAIN_APP_URL"
-          echo "RAG API: $RAG_APP_URL"
-
-          echo "=== Environment Variables (Main API) ==="
+          echo "=== Environment Variables (all services) ==="
           sudo apt-get update && sudo apt-get install -y jq
-          doctl apps get $MAIN_APP_ID -o json | jq '.[0].spec.services[] | {name: .name, envs: .envs}'
+          doctl apps get ${{ secrets.DIGITALOCEAN_APP_ID }} -o json | jq '.[0].spec.services[] | {name: .name, envs: .envs}' 
