@@ -1,0 +1,160 @@
+name: Test CI/CD Configuration
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/ci-cd.yml']
+
+jobs:
+  test-config:
+    name: Test Configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Test YAML Generation
+        run: |
+          # Test the YAML generation with dummy values
+          cat << EOF > test-spec.yaml
+          name: librechat-test
+          services:
+            - name: api
+              image:
+                registry_type: DOCKER_HUB
+                registry: registry.digitalocean.com
+                repository: test-registry/librechat
+                tag: latest
+              instance_count: 1
+              instance_size_slug: basic-xxs
+              http_port: 3080
+              envs:
+                - key: NODE_ENV
+                  value: "production"
+                - key: PORT
+                  value: "3080"
+                - key: HOST
+                  value: "0.0.0.0"
+                - key: MONGO_URI
+                  value: "mongodb://test:27017/test"
+                - key: JWT_SECRET
+                  value: "test-secret"
+                - key: CREDS_KEY
+                  value: "test-key"
+                - key: CREDS_IV
+                  value: "test-iv"
+                - key: MEILI_HOST
+                  value: "http://meilisearch:7700"
+                - key: MEILI_MASTER_KEY
+                  value: "test-master-key"
+                - key: RAG_API_URL
+                  value: "http://rag-api:8000"
+                - key: RAG_PORT
+                  value: "8000"
+                - key: OPENAI_API_KEY
+                  value: "test-openai-key"
+                - key: ANTHROPIC_API_KEY
+                  value: "test-anthropic-key"
+                - key: GOOGLE_API_KEY
+                  value: "test-google-key"
+                - key: AZURE_API_KEY
+                  value: "test-azure-key"
+                - key: AZURE_API_ENDPOINT
+                  value: "test-endpoint"
+                - key: AZURE_DEPLOYMENT_NAME
+                  value: "test-deployment"
+                - key: BINGAI_TOKEN
+                  value: "test-bing-token"
+                - key: CHATGPT_TOKEN
+                  value: "test-chatgpt-token"
+                - key: HUGGINGFACE_API_KEY
+                  value: "test-huggingface-key"
+                - key: REPLICATE_API_KEY
+                  value: "test-replicate-key"
+                - key: BAN_VIOLATIONS
+                  value: "5"
+                - key: BAN_DURATION
+                  value: "3600"
+                - key: BAN_INTERVAL
+                  value: "86400"
+                - key: CUSTOM_CONFIG
+                  value: "test-config"
+
+            - name: rag-api
+              image:
+                registry_type: DOCKER_HUB
+                registry: ghcr.io
+                repository: danny-avila/librechat-rag-api-dev-lite
+                tag: latest
+              instance_count: 1
+              instance_size_slug: basic-xxs
+              http_port: 8000
+              internal_ports:
+                - 8000
+              envs:
+                - key: DB_HOST
+                  value: "test-postgres-host"
+                - key: DB_PORT
+                  value: "5432"
+                - key: POSTGRES_DB
+                  value: "test-db"
+                - key: POSTGRES_USER
+                  value: "test-user"
+                - key: POSTGRES_PASSWORD
+                  value: "test-password"
+                - key: RAG_PORT
+                  value: "8000"
+                - key: OPENAI_API_KEY
+                  value: "test-openai-key"
+
+            - name: meilisearch
+              image:
+                registry_type: DOCKER_HUB
+                registry: docker.io
+                repository: getmeili/meilisearch
+                tag: v1.12.3
+              instance_count: 1
+              instance_size_slug: basic-xxs
+              http_port: 7700
+              internal_ports:
+                - 7700
+              envs:
+                - key: MEILI_HOST
+                  value: "http://meilisearch:7700"
+                - key: MEILI_MASTER_KEY
+                  value: "test-master-key"
+                - key: MEILI_NO_ANALYTICS
+                  value: "true"
+
+          ingress:
+            rules:
+              - component:
+                  name: api
+                match:
+                  path:
+                    prefix: "/"
+          EOF
+
+          echo "✅ Test spec generated successfully"
+
+      - name: Validate with doctl
+        run: |
+          echo "Testing DigitalOcean spec validation..."
+          doctl apps spec validate test-spec.yaml
+          echo "✅ DigitalOcean spec validation passed"
+
+      - name: Test YAML Syntax
+        run: |
+          echo "Testing YAML syntax..."
+          python3 -c "import yaml; yaml.safe_load(open('test-spec.yaml')); print('✅ YAML syntax is valid')"
+
+      - name: Show Generated Spec
+        run: |
+          echo "=== Generated Test Spec ==="
+          cat test-spec.yaml 
