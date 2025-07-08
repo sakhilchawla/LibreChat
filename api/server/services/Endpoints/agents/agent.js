@@ -141,7 +141,7 @@ const initializeAgent = async ({
   }
 
   /** @type {import('@librechat/agents').GenericTool[]} */
-  let tools = options.tools ?? structuredTools;
+  let tools = options.tools?.length ? options.tools : structuredTools;
   if (
     (agent.provider === Providers.GOOGLE || agent.provider === Providers.VERTEXAI) &&
     options.tools?.length &&
@@ -149,7 +149,9 @@ const initializeAgent = async ({
   ) {
     throw new Error(`{ "type": "${ErrorTypes.GOOGLE_TOOL_CONFLICT}"}`);
   } else if (
-    (agent.provider === Providers.OPENAI || agent.provider === Providers.AZURE) &&
+    (agent.provider === Providers.OPENAI ||
+      agent.provider === Providers.AZURE ||
+      agent.provider === Providers.ANTHROPIC) &&
     options.tools?.length &&
     structuredTools?.length
   ) {
