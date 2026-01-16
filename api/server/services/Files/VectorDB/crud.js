@@ -82,6 +82,21 @@ async function uploadVectors({ req, file, file_id, entity_id }) {
 
     const formHeaders = formData.getHeaders();
 
+    // Add detailed logging before the request
+    logger.info('[uploadVectors] Sending POST to /embed', {
+      url: `${process.env.RAG_API_URL}/embed`,
+      headers: {
+        Authorization: `Bearer ${jwtToken}`,
+        accept: 'application/json',
+        ...formHeaders,
+      },
+      formDataKeys: Object.keys(formData._streams || {}),
+      file_id,
+      entity_id,
+      filePath: file.path,
+      fileName: file.originalname,
+    });
+
     const response = await axios.post(`${process.env.RAG_API_URL}/embed`, formData, {
       headers: {
         Authorization: `Bearer ${jwtToken}`,
@@ -108,6 +123,15 @@ async function uploadVectors({ req, file, file_id, entity_id }) {
       embedded: Boolean(responseData.known_type),
     };
   } catch (error) {
+    // Add error logging for 404 and other errors
+    if (error.response && error.response.status === 404) {
+      logger.error('[uploadVectors] 404 Not Found from /embed', {
+        url: `${process.env.RAG_API_URL}/embed`,
+        data: error.response.data,
+        status: error.response.status,
+        headers: error.response.headers,
+      });
+    }
     logAxiosError({
       error,
       message: 'Error uploading vectors',
